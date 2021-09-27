@@ -26,24 +26,43 @@ import (
 )
 
 type provider struct {
-	Log      logs.Logger
-	Election election.Interface `autowired:"etcd-election"`
+	Log       logs.Logger
+	Election  election.Interface `autowired:"etcd-election"`
+	Election2 election.Interface `autowired:"etcd-election@2"`
+	Election3 election.Interface `autowired:"etcd-election@3"`
 }
 
 func (p *provider) Init(ctx servicehub.Context) error {
-	p.Election.OnLeader(p.leaderTask)
+	p.Election.OnLeader(func(ctx context.Context) {
+		p.leaderTask(ctx, p.Election)
+	})
+	p.Election2.OnLeader(func(ctx context.Context) {
+		p.leaderTask(ctx, p.Election2)
+	})
+	p.Election3.OnLeader(func(ctx context.Context) {
+		p.leaderTask(ctx, p.Election3)
+	})
 	return nil
 }
 
-func (p *provider) leaderTask(ctx context.Context) {
+func (p *provider) leaderTask(ctx context.Context, elect election.Interface) {
 	defer p.Log.Info("leader task exit")
-	watch := p.Election.Watch(ctx)
+	watch := elect.Watch(ctx)
 	for {
 		select {
 		case event := <-watch:
 			p.Log.Infof("nodes changed: %v", event)
 		case <-time.After(3 * time.Second):
-			p.Log.Info("leader task doing")
+			//p.Log.Info("leader task doing")
+			//nodes, err := elect.Nodes()
+			//if err != nil {
+			//	panic(fmt.Errorf("failed to list election nodes, err: %v", err))
+			//}
+			//var nodeIDs []string
+			//for _, node := range nodes {
+			//	nodeIDs = append(nodeIDs, node.ID)
+			//}
+			//p.Log.Infof("election nodes: %v", nodeIDs)
 		case <-ctx.Done():
 			return
 		}
@@ -51,11 +70,15 @@ func (p *provider) leaderTask(ctx context.Context) {
 }
 
 func (p *provider) Run(ctx context.Context) error {
-	select {
-	case <-time.After(10 * time.Second):
-		p.Log.Info("resign leader")
-		p.Election.ResignLeader()
-	case <-ctx.Done():
+	for {
+		select {
+		case <-time.After(10 * time.Second):
+			p.Log.Info("resign leader")
+			p.Election.ResignLeader()
+			p.Election2.ResignLeader()
+			p.Election3.ResignLeader()
+		case <-ctx.Done():
+		}
 	}
 	return nil
 }

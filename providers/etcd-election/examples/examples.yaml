@@ -1,10 +1,15 @@
 etcd:
-    endpoints: "https://localhost:2379"
-    tls:
-        cert_file: "etcd-client.pem"
-        cert_key_file: "etcd-client-key.pem"
-        ca_file: "etcd-ca.pem"
+    endpoints: "http://localhost:2379"
+#    tls:
+#        cert_file: "etcd-client.pem"
+#        cert_key_file: "etcd-client-key.pem"
+#        ca_file: "etcd-ca.pem"
   
 example:
 
 etcd-election:
+    root_path: local-etcd-election
+etcd-election@2:
+    root_path: local-etcd-election
+etcd-election@3:
+    root_path: local-etcd-election
