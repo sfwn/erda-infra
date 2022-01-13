@@ -16,15 +16,14 @@ package cpregister
 
 import (
 	"embed"
+	"fmt"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/erda-project/erda-infra/base/servicehub"
+	"github.com/erda-project/erda-infra/providers/component-protocol/cpregister/base"
 	"github.com/erda-project/erda-infra/providers/component-protocol/protocol"
 )
-
-// AllExplicitProviderCreatorMap contains all user specified provider.
-var AllExplicitProviderCreatorMap = map[string]servicehub.Provider{}
 
 // HubListener .
 type HubListener struct {
@@ -40,8 +39,12 @@ func NewHubListener(fs ...embed.FS) *HubListener {
 func (l *HubListener) BeforeInitialization(h *servicehub.Hub, config map[string]interface{}) error {
 	// auto register explicit component provider firstly
 	logrus.Info("auto register component provider to hub.config")
-	for providerName, creator := range AllExplicitProviderCreatorMap {
-		config[providerName] = creator
+	for providerName := range base.AllExplicitProviderCreatorMap {
+		config[providerName] = nil
+		logrus.Infof("auto register component provider to hub.config: %s", providerName)
+	}
+	for providerName := range base.AllExplicitSingletonProviderCreatorMap {
+		config[providerName] = nil
 		logrus.Infof("auto register component provider to hub.config: %s", providerName)
 	}
 
@@ -54,7 +57,20 @@ func (l *HubListener) BeforeInitialization(h *servicehub.Hub, config map[string]
 }
 
 // AfterInitialization .
-func (l *HubListener) AfterInitialization(h *servicehub.Hub) error { return nil }
+func (l *HubListener) AfterInitialization(h *servicehub.Hub) error {
+	// auto register singleton component provider
+	logrus.Info("auto register singleton component")
+	for singletonProviderName := range base.AllExplicitSingletonProviderCreatorMap {
+		p := h.Provider(singletonProviderName)
+		if p == nil {
+			return fmt.Errorf("provider %s not exist in servicehub", singletonProviderName)
+		}
+		scenario, compName, _ := base.MustGetScenarioAndCompNameFromProviderKey(singletonProviderName)
+		base.MustRegisterSingletonComponent(scenario, compName, p)
+		logrus.Infof("auto register singleton component success, scenario: %s, comp: %s", scenario, compName)
+	}
+	return nil
+}
 
 // AfterStart .
 func (l *HubListener) AfterStart(h *servicehub.Hub) error { return nil }

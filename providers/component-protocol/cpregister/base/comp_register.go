@@ -18,10 +18,14 @@ import (
 	"reflect"
 
 	"github.com/erda-project/erda-infra/base/servicehub"
-	"github.com/erda-project/erda-infra/providers/component-protocol/cpregister"
 	"github.com/erda-project/erda-infra/providers/component-protocol/cptype"
 	"github.com/erda-project/erda-infra/providers/component-protocol/protocol"
 )
+
+// AllExplicitProviderCreatorMap contains all user specified provider.
+var AllExplicitProviderCreatorMap = map[string]struct{}{}
+
+var AllExplicitSingletonProviderCreatorMap = map[string]struct{}{}
 
 type creators struct {
 	RenderCreator    protocol.RenderCreator
@@ -53,7 +57,7 @@ func initProviderToNamespace(scenario, compName string, creator servicehub.Creat
 	// register to servicehub
 	servicehub.Register(providerName, &servicehub.Spec{Creator: creator})
 	// add to explicit provider creator map for hubListener to auto register to hub.config
-	cpregister.AllExplicitProviderCreatorMap[providerName] = creator
+	AllExplicitProviderCreatorMap[providerName] = struct{}{}
 
 	// generate creators compatible for IComponent and old CompRender
 	creators := func() creators {
@@ -79,4 +83,58 @@ func initProviderToNamespace(scenario, compName string, creator servicehub.Creat
 		RenderC:  creators.RenderCreator,
 		Creator:  creators.ComponentCreator,
 	})
+}
+
+// MustRegisterSingletonComponent .
+func MustRegisterSingletonComponent(scenario, compName string, singletonProvider servicehub.Provider) {
+	// generate creators compatible for IComponent and old CompRender
+	creators := func() creators {
+		switch singletonProvider.(type) {
+		case cptype.IComponent:
+			return creators{ComponentCreator: func() cptype.IComponent {
+				rr := singletonProvider.(cptype.IComponent)
+				ref := reflect.ValueOf(rr)
+				ref.Elem().FieldByName("Impl").Set(ref)
+				return rr
+			}}
+		case protocol.CompRender:
+			return creators{RenderCreator: func() protocol.CompRender { return singletonProvider.(protocol.CompRender) }}
+		default:
+			panic("singleton provider is not a component (neither STD or OLD)")
+		}
+	}()
+	protocol.MustRegisterComponent(&protocol.CompRenderSpec{
+		Scenario: scenario,
+		CompName: compName,
+		RenderC:  creators.RenderCreator,
+		Creator:  creators.ComponentCreator,
+	})
+}
+
+func InitSingletonProvider(scenario, compName string, singletonProviderSpec *servicehub.Spec) {
+	// generate std providerName
+	providerName := MakeComponentProviderName(scenario, compName)
+	// register to servicehub
+	servicehub.Register(providerName, singletonProviderSpec)
+	// add to explicit provider creator map for hubListener to auto register to hub.config
+	AllExplicitProviderCreatorMap[providerName] = struct{}{}
+	AllExplicitSingletonProviderCreatorMap[providerName] = struct{}{}
+
+	//// generate creators compatible for IComponent and old CompRender
+	//creators := func() creators {
+	//	creator := singletonProviderSpec.Creator
+	//	switch creator().(type) {
+	//	case cptype.IComponent:
+	//		return creators{ComponentCreator: func() cptype.IComponent {
+	//			rr := creator().(cptype.IComponent)
+	//			ref := reflect.ValueOf(rr)
+	//			ref.Elem().FieldByName("Impl").Set(ref)
+	//			return rr
+	//		}}
+	//	case protocol.CompRender:
+	//		return creators{RenderCreator: func() protocol.CompRender { return creator().(protocol.CompRender) }}
+	//	default:
+	//		return creators{RenderCreator: func() protocol.CompRender { return &DefaultProvider{} }}
+	//	}
+	//}()
 }
