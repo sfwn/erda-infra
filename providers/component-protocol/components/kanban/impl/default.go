@@ -18,7 +18,6 @@ import (
 	"github.com/erda-project/erda-infra/providers/component-protocol/components/defaults"
 	"github.com/erda-project/erda-infra/providers/component-protocol/components/kanban"
 	"github.com/erda-project/erda-infra/providers/component-protocol/cptype"
-	"github.com/erda-project/erda-infra/providers/component-protocol/utils/cputil"
 )
 
 // DefaultKanban .
@@ -46,30 +45,30 @@ func (s *StdStructuredPtr) StatePtr() interface{} { return s.StdStatePtr }
 func (s *StdStructuredPtr) InParamsPtr() interface{} { return s.StdInParamsPtr }
 
 // RegisterCompStdOps .
-func (d *DefaultKanban) RegisterCompStdOps() (opFuncs map[cptype.OperationKey]cptype.OperationFunc) {
-	return map[cptype.OperationKey]cptype.OperationFunc{
-		// kanban-level
-		kanban.OpBoardCreate{}.OpKey(): func(sdk *cptype.SDK) cptype.IStdStructuredPtr {
-			return d.Impl.RegisterBoardCreateOp(*cputil.MustObjJSONTransfer(sdk.Event.OperationData, &kanban.OpBoardCreate{}).(*kanban.OpBoardCreate))(sdk)
-		},
-
-		// board-level
-		kanban.OpBoardLoadMore{}.OpKey(): func(sdk *cptype.SDK) cptype.IStdStructuredPtr {
-			return d.Impl.RegisterBoardLoadMoreOp(*cputil.MustObjJSONTransfer(sdk.Event.OperationData, &kanban.OpBoardLoadMore{}).(*kanban.OpBoardLoadMore))(sdk)
-		},
-		kanban.OpBoardUpdate{}.OpKey(): func(sdk *cptype.SDK) cptype.IStdStructuredPtr {
-			return d.Impl.RegisterBoardUpdateOp(*cputil.MustObjJSONTransfer(sdk.Event.OperationData, &kanban.OpBoardUpdate{}).(*kanban.OpBoardUpdate))(sdk)
-		},
-		kanban.OpBoardDelete{}.OpKey(): func(sdk *cptype.SDK) cptype.IStdStructuredPtr {
-			return d.Impl.RegisterBoardDeleteOp(*cputil.MustObjJSONTransfer(sdk.Event.OperationData, &kanban.OpBoardDelete{}).(*kanban.OpBoardDelete))(sdk)
-		},
-
-		// card-level
-		kanban.OpCardMoveTo{}.OpKey(): func(sdk *cptype.SDK) cptype.IStdStructuredPtr {
-			return d.Impl.RegisterCardMoveToOp(*cputil.MustObjJSONTransfer(sdk.Event.OperationData, &kanban.OpCardMoveTo{}).(*kanban.OpCardMoveTo))(sdk)
-		},
-	}
-}
+//func (d *DefaultKanban) RegisterCompStdOps() (opFuncs map[cptype.OperationKey]cptype.OperationFunc) {
+//	return map[cptype.OperationKey]cptype.OperationFunc{
+//		// kanban-level
+//		kanban.OpBoardCreate{}.OpKey(): func(sdk *cptype.SDK) {
+//			d.Impl.RegisterBoardCreateOp(*cputil.MustObjJSONTransfer(sdk.Event.OperationData, &kanban.OpBoardCreate{}).(*kanban.OpBoardCreate))(sdk)
+//		},
+//
+//		// board-level
+//		kanban.OpBoardLoadMore{}.OpKey(): func(sdk *cptype.SDK) {
+//			d.Impl.RegisterBoardLoadMoreOp(*cputil.MustObjJSONTransfer(sdk.Event.OperationData, &kanban.OpBoardLoadMore{}).(*kanban.OpBoardLoadMore))(sdk)
+//		},
+//		kanban.OpBoardUpdate{}.OpKey(): func(sdk *cptype.SDK) {
+//			d.Impl.RegisterBoardUpdateOp(*cputil.MustObjJSONTransfer(sdk.Event.OperationData, &kanban.OpBoardUpdate{}).(*kanban.OpBoardUpdate))(sdk)
+//		},
+//		kanban.OpBoardDelete{}.OpKey(): func(sdk *cptype.SDK) {
+//			d.Impl.RegisterBoardDeleteOp(*cputil.MustObjJSONTransfer(sdk.Event.OperationData, &kanban.OpBoardDelete{}).(*kanban.OpBoardDelete))(sdk)
+//		},
+//
+//		// card-level
+//		kanban.OpCardMoveTo{}.OpKey(): func(sdk *cptype.SDK) {
+//			d.Impl.RegisterCardMoveToOp(*cputil.MustObjJSONTransfer(sdk.Event.OperationData, &kanban.OpCardMoveTo{}).(*kanban.OpCardMoveTo))(sdk)
+//		},
+//	}
+//}
 
 // RegisterCompNonStdOps .
 func (d *DefaultKanban) RegisterCompNonStdOps() (opFuncs map[cptype.OperationKey]cptype.OperationFunc) {
