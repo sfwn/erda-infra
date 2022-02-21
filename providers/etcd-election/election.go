@@ -74,11 +74,13 @@ type Interface interface {
 	ResignLeader() error
 	OnLeader(handler func(context.Context))
 	Watch(ctx context.Context, opts ...WatchOption) <-chan Event
+	ResetWait(wait bool) // participate in election until wait if false
 }
 
 type config struct {
 	Prefix string `file:"root_path" default:"etcd-election"`
 	NodeID string `file:"node_id"`
+	Wait   bool   `file:"wait" default:"false"`
 }
 
 type provider struct {
@@ -86,6 +88,10 @@ type provider struct {
 	Log    logs.Logger
 	Client *clientv3.Client `autowired:"etcd-client"`
 	prefix string
+
+	wait          bool
+	stopWaitChan  chan struct{}
+	beginWaitChan chan struct{}
 
 	lock           sync.RWMutex
 	leaderHandlers []func(ctx context.Context)
@@ -102,6 +108,7 @@ func (p *provider) Init(ctx servicehub.Context) error {
 	if len(p.Cfg.NodeID) <= 0 {
 		p.Cfg.NodeID = uuid.NewV4().String()
 	}
+	p.wait = p.Cfg.Wait
 	p.Log.Info("my node id: ", p.Cfg.NodeID)
 	return nil
 }
@@ -114,12 +121,30 @@ func (p *provider) reset(session *concurrency.Session) {
 	p.lock.Unlock()
 }
 
+func (p *provider) ResetWait(wait bool) {
+	p.lock.Lock()
+	if wait == p.wait {
+		return
+	}
+	p.wait = wait
+	if !p.wait {
+		p.stopWaitChan <- struct{}{}
+	} else {
+		p.beginWaitChan <- struct{}{}
+	}
+	p.lock.Unlock()
+}
+
 func (p *provider) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
+		}
+
+		if p.wait {
+			<-p.stopWaitChan
 		}
 
 		session, err := p.newSession(ctx, 5*time.Second)
@@ -166,6 +191,12 @@ func (p *provider) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			p.resignLeader()
 			return nil
+		case <-p.stopWaitChan:
+			p.resignLeader()
+			continue
+		case <-p.beginWaitChan:
+			p.resignLeader()
+			continue
 		}
 	}
 }
