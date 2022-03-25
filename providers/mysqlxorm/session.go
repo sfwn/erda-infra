@@ -34,6 +34,13 @@ func WithSession(passedInSession *session) SessionOption {
 	}
 }
 
+// WithRawSession .
+func WithRawSession(rawSession *xorm.Session) SessionOption {
+	return func(s *session) {
+		s.Session = rawSession
+	}
+}
+
 func (p *provider) NewSession(opts ...SessionOption) *session {
 	tx := &session{}
 	for _, opt := range opts {
