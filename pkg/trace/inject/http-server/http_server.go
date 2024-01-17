@@ -15,7 +15,7 @@
 package traceinject
 
 import (
-	"context"
+	"fmt"
 	"net/http"
 	_ "unsafe" //nolint
 
@@ -33,14 +33,10 @@ type serverHandler struct {
 //go:noinline
 func serveHTTP(s *serverHandler, rw http.ResponseWriter, req *http.Request)
 
-//go:noinline
-func originalServeHTTP(s *serverHandler, rw http.ResponseWriter, req *http.Request) {}
-
 var tracedServerHandler = otelhttp.NewHandler(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 	injectcontext.SetContext(r.Context())
 	defer injectcontext.ClearContext()
-	s := getServerHandler(r.Context())
-	originalServeHTTP(s, rw, r)
+	fmt.Println("traced server handler invoked")
 }), "", otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 	u := *r.URL
 	u.RawQuery = ""
@@ -48,24 +44,11 @@ var tracedServerHandler = otelhttp.NewHandler(http.HandlerFunc(func(rw http.Resp
 	return r.Method + " " + u.String()
 }))
 
-type _serverHandlerKey int8
-
-const serverHandlerKey _serverHandlerKey = 0
-
-func withServerHandler(ctx context.Context, s *serverHandler) context.Context {
-	return context.WithValue(ctx, serverHandlerKey, s)
-}
-
-func getServerHandler(ctx context.Context) *serverHandler {
-	return ctx.Value(serverHandlerKey).(*serverHandler)
-}
-
 //go:noinline
 func wrappedHTTPHandler(s *serverHandler, rw http.ResponseWriter, req *http.Request) {
-	req = req.WithContext(withServerHandler(req.Context(), s))
 	tracedServerHandler.ServeHTTP(rw, req)
 }
 
 func init() {
-	hook.Hook(serveHTTP, wrappedHTTPHandler, originalServeHTTP)
+	hook.Hook(serveHTTP, wrappedHTTPHandler, nil)
 }
